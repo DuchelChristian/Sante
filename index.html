@@ -1,0 +1,839 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mon Tracker Santé</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --bg2: #1a1d27;
+    --bg3: #22263a;
+    --card: #1e2235;
+    --border: #2e3350;
+    --accent: #4ade80;
+    --accent2: #22c55e;
+    --accent-dim: rgba(74,222,128,0.12);
+    --text: #e8eaf2;
+    --muted: #8b90a8;
+    --warn: #f59e0b;
+    --danger: #f87171;
+    --info: #60a5fa;
+    --purple: #a78bfa;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; min-height: 100vh; }
+
+  /* NAV */
+  nav { background: var(--bg2); border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 0; padding: 0 1.5rem; position: sticky; top: 0; z-index: 100; }
+  nav .logo { font-size: 1.1rem; font-weight: 700; color: var(--accent); padding: 1rem 1.5rem 1rem 0; border-right: 1px solid var(--border); margin-right: 1rem; white-space: nowrap; }
+  nav button { background: none; border: none; color: var(--muted); font-size: 0.85rem; padding: 1.1rem 1rem; cursor: pointer; border-bottom: 2px solid transparent; transition: all .2s; white-space: nowrap; }
+  nav button:hover { color: var(--text); }
+  nav button.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+  /* PAGES */
+  .page { display: none; max-width: 1100px; margin: 0 auto; padding: 2rem 1.5rem; }
+  .page.active { display: block; }
+
+  /* CARDS */
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 1.25rem 1.5rem; }
+  .grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.25rem; }
+  .grid-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; }
+  .grid-4 { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 1rem; }
+  h2 { font-size: 1.1rem; font-weight: 600; margin-bottom: 1rem; color: var(--text); }
+  h3 { font-size: 0.9rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin-bottom: .75rem; }
+  .section-title { font-size: 1.4rem; font-weight: 700; margin-bottom: 1.5rem; color: var(--text); }
+
+  /* STAT CARDS */
+  .stat { background: var(--bg3); border-radius: 10px; padding: 1rem 1.25rem; }
+  .stat label { font-size: 0.75rem; color: var(--muted); display: block; margin-bottom: .4rem; text-transform: uppercase; letter-spacing: .06em; }
+  .stat .val { font-size: 1.8rem; font-weight: 700; line-height: 1; }
+  .stat .sub { font-size: 0.75rem; color: var(--muted); margin-top: .3rem; }
+  .green { color: var(--accent); }
+  .warn { color: var(--warn); }
+  .danger { color: var(--danger); }
+  .info { color: var(--info); }
+  .purple { color: var(--purple); }
+
+  /* PROGRESS BAR */
+  .prog-wrap { background: var(--bg3); border-radius: 999px; height: 10px; overflow: hidden; }
+  .prog-bar { height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--accent2), var(--accent)); transition: width .5s; }
+
+  /* OBJECTIFS TIMELINE */
+  .obj-timeline { display: flex; flex-direction: column; gap: 0; }
+  .obj-item { display: flex; align-items: flex-start; gap: 1rem; padding: .75rem 0; position: relative; }
+  .obj-item:not(:last-child)::after { content: ''; position: absolute; left: 15px; top: 42px; bottom: -4px; width: 2px; background: var(--border); }
+  .obj-dot { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 700; flex-shrink: 0; border: 2px solid; }
+  .obj-dot.done { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
+  .obj-dot.current { background: rgba(250,158,11,.15); border-color: var(--warn); color: var(--warn); }
+  .obj-dot.future { background: var(--bg3); border-color: var(--border); color: var(--muted); }
+  .obj-info { flex: 1; padding-top: .4rem; }
+  .obj-info .obj-label { font-weight: 600; font-size: 0.95rem; }
+  .obj-info .obj-date { font-size: 0.8rem; color: var(--muted); }
+  .obj-kg { font-weight: 700; font-size: 1rem; }
+
+  /* JOURNAL */
+  .jour-header { display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem; flex-wrap: wrap; }
+  .jour-date { font-size: 1.3rem; font-weight: 700; }
+  input[type=date], input[type=number], input[type=text], select, textarea {
+    background: var(--bg3); border: 1px solid var(--border); color: var(--text);
+    border-radius: 8px; padding: .5rem .75rem; font-size: 0.9rem; font-family: inherit;
+    outline: none; transition: border .2s;
+  }
+  input[type=date]:focus, input[type=number]:focus, input[type=text]:focus, select:focus, textarea:focus { border-color: var(--accent); }
+  textarea { width: 100%; resize: vertical; min-height: 80px; }
+
+  /* BOUTONS */
+  .btn { border: none; border-radius: 8px; padding: .55rem 1.2rem; font-size: 0.875rem; font-weight: 600; cursor: pointer; transition: all .2s; }
+  .btn-primary { background: var(--accent2); color: #0a1a0a; }
+  .btn-primary:hover { background: var(--accent); }
+  .btn-ghost { background: var(--bg3); color: var(--text); border: 1px solid var(--border); }
+  .btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
+  .btn-danger { background: rgba(248,113,113,.15); color: var(--danger); border: 1px solid rgba(248,113,113,.3); }
+  .btn-danger:hover { background: rgba(248,113,113,.25); }
+
+  /* CHECK-ITEMS */
+  .check-group { display: flex; flex-direction: column; gap: .5rem; }
+  .check-row { display: flex; align-items: center; gap: .75rem; padding: .5rem .75rem; background: var(--bg3); border-radius: 8px; cursor: pointer; transition: background .2s; }
+  .check-row:hover { background: var(--border); }
+  .check-row input[type=checkbox] { width: 18px; height: 18px; accent-color: var(--accent); flex-shrink: 0; cursor: pointer; }
+  .check-row.checked { text-decoration: line-through; color: var(--muted); }
+  .check-row label { cursor: pointer; font-size: 0.9rem; }
+
+  /* TABS internes */
+  .itabs { display: flex; gap: .5rem; margin-bottom: 1.25rem; flex-wrap: wrap; }
+  .itab { background: var(--bg3); border: 1px solid var(--border); color: var(--muted); border-radius: 8px; padding: .4rem .9rem; font-size: 0.82rem; cursor: pointer; transition: all .2s; }
+  .itab.active { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
+
+  /* HISTORIQUE TABLE */
+  table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
+  th { text-align: left; color: var(--muted); font-size: 0.75rem; text-transform: uppercase; letter-spacing: .05em; padding: .5rem .75rem; border-bottom: 1px solid var(--border); }
+  td { padding: .6rem .75rem; border-bottom: 1px solid var(--border); }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: var(--bg3); }
+
+  /* EXERCICE */
+  .exo-list { display: flex; flex-direction: column; gap: .4rem; }
+  .exo-row { display: flex; align-items: center; gap: .75rem; padding: .5rem .75rem; background: var(--bg3); border-radius: 8px; font-size: 0.875rem; }
+  .exo-row .exo-name { flex: 1; }
+  .exo-row .exo-detail { color: var(--muted); font-size: 0.8rem; }
+  .badge { display: inline-block; padding: .2rem .6rem; border-radius: 999px; font-size: 0.72rem; font-weight: 600; }
+  .badge-green { background: var(--accent-dim); color: var(--accent); }
+  .badge-warn { background: rgba(245,158,11,.15); color: var(--warn); }
+  .badge-info { background: rgba(96,165,250,.12); color: var(--info); }
+  .badge-purple { background: rgba(167,139,250,.12); color: var(--purple); }
+
+  /* RECETTES */
+  .recipe-card { display: flex; align-items: center; gap: .75rem; padding: .75rem 1rem; background: var(--bg3); border-radius: 10px; font-size: 0.875rem; cursor: pointer; transition: background .2s; border: 1px solid transparent; }
+  .recipe-card:hover { border-color: var(--accent); }
+  .recipe-icon { font-size: 1.4rem; }
+
+  /* JEÛNE */
+  .jeune-badge { padding: .4rem 1rem; border-radius: 999px; font-size: 0.85rem; font-weight: 600; }
+  .jeune-long { background: rgba(167,139,250,.15); color: var(--purple); }
+  .jeune-court { background: rgba(96,165,250,.12); color: var(--info); }
+
+  /* CHART area */
+  #chartPoids { width: 100%; height: 200px; }
+
+  /* Règles alimentaires */
+  .rule-item { display: flex; gap: .75rem; padding: .6rem 0; border-bottom: 1px solid var(--border); font-size: 0.875rem; align-items: flex-start; }
+  .rule-item:last-child { border-bottom: none; }
+  .rule-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); flex-shrink: 0; margin-top: .45rem; }
+
+  /* TOAST */
+  #toast { position: fixed; bottom: 1.5rem; right: 1.5rem; background: var(--accent2); color: #0a1a0a; padding: .75rem 1.25rem; border-radius: 10px; font-weight: 600; font-size: 0.875rem; opacity: 0; pointer-events: none; transition: opacity .3s; z-index: 999; }
+
+  @media (max-width: 600px) {
+    .page { padding: 1rem; }
+    nav { padding: 0 .75rem; overflow-x: auto; }
+    nav .logo { font-size: 0.95rem; }
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="logo">💪 Mon Tracker</div>
+  <button class="active" onclick="showPage('dashboard')">Tableau de bord</button>
+  <button onclick="showPage('journal')">Journal</button>
+  <button onclick="showPage('programme')">Programme</button>
+  <button onclick="showPage('recettes')">Recettes</button>
+  <button onclick="showPage('historique')">Historique</button>
+</nav>
+
+<!-- ===================== DASHBOARD ===================== -->
+<div id="page-dashboard" class="page active">
+  <div class="section-title">Tableau de bord</div>
+
+  <div class="grid-4" style="margin-bottom:1.25rem;">
+    <div class="stat">
+      <label>Poids actuel</label>
+      <div class="val green" id="dash-poids">— kg</div>
+      <div class="sub">Départ : 108 kg</div>
+    </div>
+    <div class="stat">
+      <label>Objectif final</label>
+      <div class="val info">84 kg</div>
+      <div class="sub">22 Février 2026</div>
+    </div>
+    <div class="stat">
+      <label>Perdu</label>
+      <div class="val warn" id="dash-perdu">— kg</div>
+      <div class="sub" id="dash-reste">Reste : — kg</div>
+    </div>
+    <div class="stat">
+      <label>Progression</label>
+      <div class="val green" id="dash-pct">—%</div>
+      <div class="sub" id="dash-semaines">— semaines restantes</div>
+    </div>
+  </div>
+
+  <!-- Barre globale -->
+  <div class="card" style="margin-bottom:1.25rem;">
+    <div style="display:flex; justify-content:space-between; margin-bottom:.6rem; font-size:0.85rem;">
+      <span style="color:var(--muted);">108 kg</span>
+      <span style="color:var(--muted);">84 kg</span>
+    </div>
+    <div class="prog-wrap"><div class="prog-bar" id="dash-bar" style="width:0%"></div></div>
+  </div>
+
+  <div class="grid-2">
+    <!-- Timeline objectifs -->
+    <div class="card">
+      <h2>🎯 Objectifs</h2>
+      <div class="obj-timeline" id="obj-timeline"></div>
+    </div>
+
+    <!-- Résumé du jour -->
+    <div>
+      <div class="card" style="margin-bottom:1.25rem;">
+        <h2>📅 Aujourd'hui</h2>
+        <div id="dash-today-jeune" style="margin-bottom:.75rem;"></div>
+        <div id="dash-today-gym" style="margin-bottom:.75rem;"></div>
+        <div id="dash-steps-today" style="font-size:0.875rem; color:var(--muted);"></div>
+      </div>
+      <div class="card">
+        <h2>📊 Perte de poids</h2>
+        <div style="font-size:0.875rem; color:var(--muted); margin-bottom:.75rem;">Objectif : 1 kg/sem · Acceptable : 0,75 kg/sem</div>
+        <div class="grid-2" style="gap:.75rem;">
+          <div class="stat">
+            <label>Cette semaine</label>
+            <div class="val" id="dash-week-loss" style="font-size:1.2rem;">— kg</div>
+          </div>
+          <div class="stat">
+            <label>Moy. mensuelle</label>
+            <div class="val" id="dash-month-avg" style="font-size:1.2rem;">— kg</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== JOURNAL ===================== -->
+<div id="page-journal" class="page">
+  <div class="section-title">Journal du jour</div>
+
+  <div class="jour-header">
+    <input type="date" id="jour-date" onchange="loadJournal()">
+    <button class="btn btn-ghost" onclick="setToday()">Aujourd'hui</button>
+    <button class="btn btn-primary" onclick="saveJournal()">💾 Sauvegarder</button>
+  </div>
+
+  <div class="grid-2">
+    <!-- Colonne gauche -->
+    <div style="display:flex; flex-direction:column; gap:1.25rem;">
+
+      <!-- Poids -->
+      <div class="card">
+        <h2>⚖️ Poids du jour</h2>
+        <div style="display:flex; align-items:center; gap:1rem;">
+          <input type="number" id="jour-poids" placeholder="ex: 106.5" step="0.1" min="50" max="200" style="width:140px;">
+          <span style="color:var(--muted); font-size:0.875rem;">kg</span>
+        </div>
+        <div style="font-size:0.8rem; color:var(--muted); margin-top:.5rem;">Peser le matin à jeun de préférence</div>
+      </div>
+
+      <!-- Jeûne -->
+      <div class="card">
+        <h2>⏱️ Jeûne</h2>
+        <div id="jour-jeune-info" style="margin-bottom:.75rem;"></div>
+        <div class="check-group">
+          <div class="check-row" onclick="toggleCheck(this)">
+            <input type="checkbox" id="j-jeune">
+            <label for="j-jeune">Jeûne respecté aujourd'hui</label>
+          </div>
+          <div class="check-row" onclick="toggleCheck(this)">
+            <input type="checkbox" id="j-sucre">
+            <label for="j-sucre">✅ Pas de goûter sucré (ou 1 seul cette semaine)</label>
+          </div>
+          <div class="check-row" onclick="toggleCheck(this)">
+            <input type="checkbox" id="j-lent">
+            <label for="j-lent">🐢 Mangé lentement</label>
+          </div>
+        </div>
+      </div>
+
+      <!-- Pas -->
+      <div class="card">
+        <h2>👟 Pas du jour</h2>
+        <div style="display:flex; align-items:center; gap:1rem; margin-bottom:.75rem;">
+          <input type="number" id="jour-pas" placeholder="ex: 11500" step="100" min="0" style="width:160px;">
+          <span style="color:var(--muted); font-size:0.875rem;">pas</span>
+        </div>
+        <div style="font-size:0.8rem; color:var(--muted);">Objectif : 10 000/jour · 13 000 × 3/sem (dont ½ d'affilée)</div>
+      </div>
+
+    </div>
+
+    <!-- Colonne droite -->
+    <div style="display:flex; flex-direction:column; gap:1.25rem;">
+
+      <!-- Activité -->
+      <div class="card">
+        <h2>🏋️ Activité physique</h2>
+        <div class="itabs" id="act-tabs">
+          <div class="itab active" onclick="selectActTab(this,'gym')">Gym</div>
+          <div class="itab" onclick="selectActTab(this,'repos')">Repos actif</div>
+          <div class="itab" onclick="selectActTab(this,'repos2')">Repos</div>
+        </div>
+        <div id="act-content"></div>
+      </div>
+
+      <!-- Repas -->
+      <div class="card">
+        <h2>🍽️ Repas du jour</h2>
+        <div style="margin-bottom:.75rem;">
+          <label style="font-size:0.8rem; color:var(--muted); display:block; margin-bottom:.4rem;">Recettes cuisinées</label>
+          <div class="check-group" id="jour-recettes-check"></div>
+        </div>
+        <div style="margin-top:.75rem;">
+          <label style="font-size:0.8rem; color:var(--muted); display:block; margin-bottom:.4rem;">Notes repas</label>
+          <textarea id="jour-repas-notes" placeholder="Ce que tu as mangé, ressentis, faim entre repas..."></textarea>
+        </div>
+      </div>
+
+      <!-- Notes -->
+      <div class="card">
+        <h2>📝 Notes du jour</h2>
+        <textarea id="jour-notes" placeholder="Énergie, humeur, observations générales..."></textarea>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ===================== PROGRAMME ===================== -->
+<div id="page-programme" class="page">
+  <div class="section-title">Mon Programme</div>
+
+  <div class="grid-2" style="margin-bottom:1.25rem;">
+
+    <!-- Alimentation -->
+    <div class="card">
+      <h2>🥗 Règles alimentaires</h2>
+      <div style="margin-bottom:1rem;">
+        <h3>Jeûne intermittent</h3>
+        <div class="exo-list">
+          <div class="exo-row"><span class="badge badge-purple">Lun / Mer / Ven / Sam</span><span style="margin-left:.75rem; font-size:0.875rem;">20h → 15h</span></div>
+          <div class="exo-row"><span class="badge badge-info">Mar / Jeu / Dim</span><span style="margin-left:.75rem; font-size:0.875rem;">20h → 12h</span></div>
+        </div>
+      </div>
+      <div class="rule-item"><div class="rule-dot"></div><span>Goûter sucré : 1 seule fois par semaine</span></div>
+      <div class="rule-item"><div class="rule-dot"></div><span>Si faim pendant le jeûne : eau ou thé</span></div>
+      <div class="rule-item"><div class="rule-dot"></div><span>Si faim extrême pendant le jeûne : banane ou melon d'eau</span></div>
+      <div class="rule-item"><div class="rule-dot"></div><span>Si faim entre les repas : fruits</span></div>
+      <div class="rule-item"><div class="rule-dot"></div><span>Repas centrés sur la viande et les légumes</span></div>
+      <div class="rule-item"><div class="rule-dot"></div><span>Manger lentement</span></div>
+      <div class="rule-item"><div class="rule-dot"></div><span>Objectif : 1 600 kcal/jour</span></div>
+    </div>
+
+    <!-- Planning semaine -->
+    <div class="card">
+      <h2>📆 Planning de la semaine</h2>
+      <div class="exo-list">
+        <div class="exo-row"><span style="width:80px; font-weight:600; color:var(--warn);">Lundi</span><span class="badge badge-purple">Jeûne 20h→15h</span><span class="exo-detail" style="margin-left:.5rem;">Repos actif</span></div>
+        <div class="exo-row"><span style="width:80px; font-weight:600;">Mardi</span><span class="badge badge-info">Jeûne 20h→12h</span></div>
+        <div class="exo-row"><span style="width:80px; font-weight:600; color:var(--accent);">Mercredi</span><span class="badge badge-purple">Jeûne 20h→15h</span><span class="badge badge-green" style="margin-left:.5rem;">Gym</span></div>
+        <div class="exo-row"><span style="width:80px; font-weight:600;">Jeudi</span><span class="badge badge-info">Jeûne 20h→12h</span></div>
+        <div class="exo-row"><span style="width:80px; font-weight:600; color:var(--accent);">Vendredi</span><span class="badge badge-purple">Jeûne 20h→15h</span><span class="badge badge-green" style="margin-left:.5rem;">Gym</span></div>
+        <div class="exo-row"><span style="width:80px; font-weight:600; color:var(--warn);">Samedi</span><span class="badge badge-purple">Jeûne 20h→15h</span><span class="exo-detail" style="margin-left:.5rem;">Repos actif</span></div>
+        <div class="exo-row"><span style="width:80px; font-weight:600; color:var(--accent);">Dimanche</span><span class="badge badge-info">Jeûne 20h→12h</span><span class="badge badge-green" style="margin-left:.5rem;">Gym</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <!-- Gym -->
+    <div class="card">
+      <h2>🏋️ Séance Gym (Mer / Ven / Dim)</h2>
+      <div style="font-size:0.8rem; color:var(--muted); margin-bottom:.75rem;">Commencer par des étirements légers</div>
+      <div class="exo-list">
+        <div class="exo-row"><span class="exo-name">Leg Press</span><span class="exo-detail">145 kg · 12×3</span></div>
+        <div class="exo-row"><span class="exo-name">Mollets debout</span><span class="exo-detail">70 lbs · 12×3</span></div>
+        <div class="exo-row"><span class="exo-name">Abductor machine</span><span class="exo-detail">73 kg · 12×3</span></div>
+        <div class="exo-row"><span class="exo-name">Abs machine</span><span class="exo-detail">48 kg · 12×3</span></div>
+        <div class="exo-row"><span class="exo-name">Arm curling machine</span><span class="exo-detail">14 kg · 12×3</span></div>
+        <div class="exo-row"><span class="exo-name">Triceps dip machine</span><span class="exo-detail">20 kg · 12×3</span></div>
+        <div class="exo-row"><span class="exo-name">Chest press machine</span><span class="exo-detail">50 lbs · 12×3</span></div>
+        <div class="exo-row"><span class="exo-name">Shoulders press</span><span class="exo-detail">7 kg · 12×2</span></div>
+      </div>
+    </div>
+
+    <!-- Repos actif -->
+    <div class="card">
+      <h2>🧘 Repos actif (Lun / Sam + 1 autre)</h2>
+      <div style="font-size:0.8rem; color:var(--muted); margin-bottom:.75rem;">Commencer par des étirements légers</div>
+      <div class="exo-list">
+        <div class="exo-row"><span class="exo-name">Goblet squat (Cuisses)</span><span class="exo-detail">30 lbs · 10×2</span></div>
+        <div class="exo-row"><span class="exo-name">Mollets debout (Mollets)</span><span class="exo-detail">30 lbs · 10×2</span></div>
+        <div class="exo-row"><span class="exo-name">Hip thrust (Hanches/Fessiers)</span><span class="exo-detail">15 lbs · 10×2</span></div>
+        <div class="exo-row"><span class="exo-name">Crunch abdominal</span><span class="exo-detail">10×2</span></div>
+        <div class="exo-row"><span class="exo-name">Chest press</span><span class="exo-detail">30 lbs · 10×2</span></div>
+        <div class="exo-row"><span class="exo-name">Hammer curl</span><span class="exo-detail">30 lbs · 12×3</span></div>
+        <div class="exo-row"><span class="exo-name">Dips</span><span class="exo-detail">8×2</span></div>
+        <div class="exo-row"><span class="exo-name">Shoulder press</span><span class="exo-detail">10 lbs · 10×2</span></div>
+        <div class="exo-row"><span class="exo-name">Neck press</span><span class="exo-detail">10 lbs · 10×2</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== RECETTES ===================== -->
+<div id="page-recettes" class="page">
+  <div class="section-title">Mes Recettes</div>
+  <div style="font-size:0.875rem; color:var(--muted); margin-bottom:1.5rem;">Objectif 1 600 kcal/jour · Centrées sur viande et légumes</div>
+
+  <div class="grid-2">
+    <div>
+      <h3 style="margin-bottom:.75rem;">🥩 Viande hachée</h3>
+      <div style="display:flex; flex-direction:column; gap:.5rem; margin-bottom:1.5rem;">
+        <div class="recipe-card"><span class="recipe-icon">🍝</span><span>Sauce tomate bolognaise avec pâtes blé entier ou riz</span></div>
+        <div class="recipe-card"><span class="recipe-icon">🍢</span><span>Brochettes de viande hachée de porc avec légumes grillés</span></div>
+        <div class="recipe-card"><span class="recipe-icon">🧆</span><span>Boulettes de viande hachée avec sauce tomate et riz</span></div>
+      </div>
+
+      <h3 style="margin-bottom:.75rem;">🦐 Crevettes</h3>
+      <div style="display:flex; flex-direction:column; gap:.5rem; margin-bottom:1.5rem;">
+        <div class="recipe-card"><span class="recipe-icon">🍤</span><span>Crevettes à la crème fraîche avec riz</span></div>
+        <div class="recipe-card"><span class="recipe-icon">🍚</span><span>Riz frit aux crevettes</span></div>
+      </div>
+
+      <h3 style="margin-bottom:.75rem;">🐷 Viande de porc</h3>
+      <div style="display:flex; flex-direction:column; gap:.5rem; margin-bottom:1.5rem;">
+        <div class="recipe-card"><span class="recipe-icon">🍖</span><span>Porc à la moutarde et crème fraîche avec du riz</span></div>
+        <div class="recipe-card"><span class="recipe-icon">🥩</span><span>Porc rôti avec des oignons</span></div>
+        <div class="recipe-card"><span class="recipe-icon">🍢</span><span>Brochettes de porc</span></div>
+      </div>
+    </div>
+
+    <div>
+      <h3 style="margin-bottom:.75rem;">🐔 Poulet</h3>
+      <div style="display:flex; flex-direction:column; gap:.5rem; margin-bottom:1.5rem;">
+        <div class="recipe-card"><span class="recipe-icon">🍗</span><span>Poulet rôti avec oignons et légumes</span></div>
+        <div class="recipe-card"><span class="recipe-icon">🍛</span><span>Poitrine de poulet à la crème fraîche et du riz</span></div>
+        <div class="recipe-card"><span class="recipe-icon">🍗</span><span>Ailes de poulet frites au Air Fryer</span></div>
+      </div>
+
+      <h3 style="margin-bottom:.75rem;">🥦 Fruits & Légumes</h3>
+      <div style="display:flex; flex-direction:column; gap:.5rem; margin-bottom:1.5rem;">
+        <div class="recipe-card"><span class="recipe-icon">🫑</span><span>Ratatouille</span></div>
+        <div class="recipe-card"><span class="recipe-icon">🍓</span><span>Salade de fruits</span></div>
+      </div>
+
+      <h3 style="margin-bottom:.75rem;">🐟 Poisson</h3>
+      <div style="display:flex; flex-direction:column; gap:.5rem;">
+        <div class="recipe-card"><span class="recipe-icon">🐠</span><span>Poisson braisé</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== HISTORIQUE ===================== -->
+<div id="page-historique" class="page">
+  <div class="section-title">Historique</div>
+
+  <div class="card" style="margin-bottom:1.5rem;">
+    <h2>📈 Courbe de poids</h2>
+    <canvas id="chartPoids" role="img" aria-label="Courbe de poids dans le temps"></canvas>
+  </div>
+
+  <div class="card">
+    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:1rem;">
+      <h2 style="margin:0;">📋 Entrées journalières</h2>
+      <button class="btn btn-danger" onclick="clearAllData()">Effacer tout</button>
+    </div>
+    <div style="overflow-x:auto;">
+      <table id="hist-table">
+        <thead>
+          <tr>
+            <th>Date</th><th>Poids</th><th>Δ</th><th>Pas</th><th>Jeûne</th><th>Activité</th><th>Notes</th><th></th>
+          </tr>
+        </thead>
+        <tbody id="hist-body"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+// ===== DONNÉES =====
+const OBJECTIFS = [
+  { label: 'Départ', kg: 108, date: '2025-06-15', num: 0 },
+  { label: 'Objectif 1', kg: 104, date: '2025-07-27', num: 1 },
+  { label: 'Objectif 2', kg: 100, date: '2025-09-07', num: 2 },
+  { label: 'Objectif 3', kg: 96,  date: '2025-10-19', num: 3 },
+  { label: 'Objectif 4', kg: 92,  date: '2025-11-30', num: 4 },
+  { label: 'Objectif 5', kg: 88,  date: '2026-01-11', num: 5 },
+  { label: 'Objectif 6', kg: 84,  date: '2026-02-22', num: 6 },
+];
+
+const RECETTES = [
+  'Bolognaise (viande hachée)','Brochettes viande hachée','Boulettes sauce tomate',
+  'Crevettes crème fraîche','Riz frit crevettes',
+  'Porc moutarde crème','Porc rôti oignons','Brochettes porc',
+  'Poulet rôti légumes','Poitrine poulet crème','Ailes poulet Air Fryer',
+  'Ratatouille','Salade de fruits','Poisson braisé'
+];
+
+function getData() { try { return JSON.parse(localStorage.getItem('tracker_data') || '{}'); } catch(e) { return {}; } }
+function saveData(d) { localStorage.setItem('tracker_data', JSON.stringify(d)); }
+function getEntry(date) { const d = getData(); return d[date] || {}; }
+function saveEntry(date, entry) { const d = getData(); d[date] = entry; saveData(d); }
+
+function formatDate(str) {
+  const [y,m,dy] = str.split('-');
+  return `${dy}/${m}/${y}`;
+}
+function dateFromStr(str) { return new Date(str + 'T12:00:00'); }
+function weeksLeft(targetDate) {
+  const now = new Date(); const t = dateFromStr(targetDate);
+  return Math.max(0, Math.round((t - now) / (7*24*3600*1000)));
+}
+
+// Quel jeûne pour un jour donné
+function getJeune(dateStr) {
+  const d = new Date(dateStr + 'T12:00:00');
+  const day = d.getDay(); // 0=dim,1=lun,2=mar,3=mer,4=jeu,5=ven,6=sam
+  if ([1,3,5,6].includes(day)) return { label: '20h → 15h (long)', type: 'long', heures: 19 };
+  return { label: '20h → 12h (court)', type: 'court', heures: 16 };
+}
+
+function isGymDay(dateStr) {
+  const d = new Date(dateStr + 'T12:00:00');
+  return [3,5,0].includes(d.getDay()); // mer, ven, dim
+}
+
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.style.opacity = '1';
+  setTimeout(() => { t.style.opacity = '0'; }, 2000);
+}
+
+// ===== NAVIGATION =====
+function showPage(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  event.currentTarget.classList.add('active');
+  if (name === 'dashboard') updateDashboard();
+  if (name === 'historique') updateHistorique();
+}
+
+// ===== DASHBOARD =====
+function updateDashboard() {
+  const data = getData();
+  const entries = Object.entries(data).sort((a,b) => a[0].localeCompare(b[0]));
+  const lastEntry = entries.length ? entries[entries.length-1] : null;
+  const poidsActuel = lastEntry ? lastEntry[1].poids : null;
+
+  const start = 108, final = 84, range = start - final;
+  const perdu = poidsActuel ? +(start - poidsActuel).toFixed(1) : null;
+  const reste = poidsActuel ? +(poidsActuel - final).toFixed(1) : null;
+  const pct = poidsActuel ? Math.min(100, Math.round((perdu / range) * 100)) : 0;
+
+  document.getElementById('dash-poids').textContent = poidsActuel ? poidsActuel + ' kg' : '— kg';
+  document.getElementById('dash-perdu').textContent = perdu !== null ? '-' + perdu + ' kg' : '— kg';
+  document.getElementById('dash-perdu').className = 'val ' + (perdu >= 1 ? 'green' : perdu >= 0.75 ? 'warn' : 'danger');
+  document.getElementById('dash-reste').textContent = reste !== null ? 'Reste : ' + reste + ' kg' : 'Reste : — kg';
+  document.getElementById('dash-pct').textContent = pct + '%';
+  document.getElementById('dash-semaines').textContent = weeksLeft('2026-02-22') + ' semaines restantes';
+  document.getElementById('dash-bar').style.width = pct + '%';
+
+  // Semaine courante
+  const now = new Date();
+  const weekStart = new Date(now); weekStart.setDate(now.getDate() - now.getDay() + 1);
+  const weekEntries = entries.filter(([d]) => new Date(d + 'T12:00:00') >= weekStart && entries[0]?.[1]?.poids);
+  let weekLoss = null;
+  if (weekEntries.length >= 2) {
+    weekLoss = +(weekEntries[0][1].poids - weekEntries[weekEntries.length-1][1].poids).toFixed(1);
+  }
+  const wEl = document.getElementById('dash-week-loss');
+  if (weekLoss !== null) {
+    wEl.textContent = '-' + weekLoss + ' kg';
+    wEl.className = 'val ' + (weekLoss >= 1 ? 'green' : weekLoss >= 0.75 ? 'warn' : 'danger');
+  } else { wEl.textContent = '— kg'; wEl.className = 'val'; }
+
+  document.getElementById('dash-month-avg').textContent = '— kg';
+
+  // Today info
+  const todayStr = new Date().toISOString().split('T')[0];
+  const jeune = getJeune(todayStr);
+  const gym = isGymDay(todayStr);
+  document.getElementById('dash-today-jeune').innerHTML =
+    `<span class="badge ${jeune.type === 'long' ? 'badge-purple' : 'badge-info'}">${jeune.label}</span>`;
+  document.getElementById('dash-today-gym').innerHTML =
+    gym ? '<span class="badge badge-green">🏋️ Jour de Gym</span>' : '<span class="badge badge-warn">🧘 Repos actif</span>';
+
+  // Objectifs timeline
+  const timeline = document.getElementById('obj-timeline');
+  timeline.innerHTML = '';
+  OBJECTIFS.forEach((obj, i) => {
+    if (i === 0) return;
+    let status = 'future', symbol = obj.num;
+    const now2 = new Date();
+    const objDate = dateFromStr(obj.date);
+    if (poidsActuel && poidsActuel <= obj.kg) { status = 'done'; symbol = '✓'; }
+    else if (objDate <= now2 || (i > 0 && dateFromStr(OBJECTIFS[i-1].date) <= now2)) { status = 'current'; symbol = '▶'; }
+
+    const el = document.createElement('div');
+    el.className = 'obj-item';
+    el.innerHTML = `
+      <div class="obj-dot ${status}">${symbol}</div>
+      <div class="obj-info">
+        <div class="obj-label">${obj.label} — <span class="obj-kg ${status === 'done' ? 'green' : status === 'current' ? 'warn' : ''}">${obj.kg} kg</span></div>
+        <div class="obj-date">${formatDate(obj.date)}</div>
+      </div>`;
+    timeline.appendChild(el);
+  });
+}
+
+// ===== JOURNAL =====
+let currentActType = 'gym';
+
+function setToday() {
+  document.getElementById('jour-date').value = new Date().toISOString().split('T')[0];
+  loadJournal();
+}
+
+function loadJournal() {
+  const date = document.getElementById('jour-date').value;
+  if (!date) return;
+  const entry = getEntry(date);
+
+  document.getElementById('jour-poids').value = entry.poids || '';
+  document.getElementById('jour-pas').value = entry.pas || '';
+  document.getElementById('j-jeune').checked = !!entry.jeune;
+  document.getElementById('j-sucre').checked = !!entry.sucre;
+  document.getElementById('j-lent').checked = !!entry.lent;
+  document.getElementById('jour-repas-notes').value = entry.repasNotes || '';
+  document.getElementById('jour-notes').value = entry.notes || '';
+
+  // Jeûne du jour
+  const jeune = getJeune(date);
+  document.getElementById('jour-jeune-info').innerHTML =
+    `<span class="badge ${jeune.type === 'long' ? 'badge-purple' : 'badge-info'}" style="font-size:.85rem; padding:.35rem .9rem;">${jeune.label}</span>`;
+
+  // Activité
+  currentActType = entry.actType || (isGymDay(date) ? 'gym' : 'repos');
+  document.querySelectorAll('#act-tabs .itab').forEach(t => t.classList.remove('active'));
+  document.querySelector(`#act-tabs .itab[onclick*="${currentActType}"]`).classList.add('active');
+  renderActContent(currentActType, entry.actChecks || {});
+
+  // Recettes
+  const checkCont = document.getElementById('jour-recettes-check');
+  checkCont.innerHTML = '';
+  RECETTES.forEach(r => {
+    const checked = entry.recettes && entry.recettes.includes(r);
+    const row = document.createElement('div');
+    row.className = 'check-row' + (checked ? ' checked' : '');
+    row.onclick = function() { toggleCheck(this); };
+    row.innerHTML = `<input type="checkbox" ${checked ? 'checked' : ''}><label>${r}</label>`;
+    checkCont.appendChild(row);
+  });
+
+  updateCheckedState();
+}
+
+function selectActTab(el, type) {
+  document.querySelectorAll('#act-tabs .itab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  currentActType = type;
+  renderActContent(type, {});
+}
+
+function renderActContent(type, checks) {
+  const cont = document.getElementById('act-content');
+  const gymExos = [
+    'Étirements légers','Leg Press 145kg 12×3','Mollets debout 70lbs 12×3',
+    'Abductor machine 73kg 12×3','Abs machine 48kg 12×3','Arm curling machine 14kg 12×3',
+    'Triceps dip machine 20kg 12×3','Chest press machine 50lbs 12×3','Shoulders press 7kg 12×2'
+  ];
+  const reposExos = [
+    'Étirements légers','Goblet squat 30lbs 10×2','Mollets debout 30lbs 10×2',
+    'Hip thrust 15lbs 10×2','Crunch abdominal 10×2','Chest press 30lbs 10×2',
+    'Hammer curl 30lbs 12×3','Dips 8×2','Shoulder press 10lbs 10×2','Neck press 10lbs 10×2'
+  ];
+  if (type === 'repos2') { cont.innerHTML = '<div style="color:var(--muted); font-size:0.875rem; padding:.5rem 0;">Journée de repos complet</div>'; return; }
+  const list = type === 'gym' ? gymExos : reposExos;
+  cont.innerHTML = '<div class="check-group">' + list.map(e =>
+    `<div class="check-row${checks[e] ? ' checked' : ''}" onclick="toggleCheck(this)"><input type="checkbox" ${checks[e] ? 'checked' : ''}><label>${e}</label></div>`
+  ).join('') + '</div>';
+}
+
+function toggleCheck(row) {
+  const cb = row.querySelector('input[type=checkbox]');
+  cb.checked = !cb.checked;
+  row.classList.toggle('checked', cb.checked);
+}
+
+function updateCheckedState() {
+  document.querySelectorAll('.check-row').forEach(row => {
+    const cb = row.querySelector('input[type=checkbox]');
+    if (cb) row.classList.toggle('checked', cb.checked);
+  });
+}
+
+function saveJournal() {
+  const date = document.getElementById('jour-date').value;
+  if (!date) { toast('⚠️ Sélectionne une date'); return; }
+
+  const actChecks = {};
+  document.querySelectorAll('#act-content .check-row').forEach(row => {
+    const cb = row.querySelector('input'); const lbl = row.querySelector('label');
+    if (cb && lbl) actChecks[lbl.textContent] = cb.checked;
+  });
+
+  const recettes = [];
+  document.querySelectorAll('#jour-recettes-check .check-row').forEach(row => {
+    const cb = row.querySelector('input'); const lbl = row.querySelector('label');
+    if (cb && cb.checked && lbl) recettes.push(lbl.textContent);
+  });
+
+  const entry = {
+    poids: parseFloat(document.getElementById('jour-poids').value) || null,
+    pas: parseInt(document.getElementById('jour-pas').value) || null,
+    jeune: document.getElementById('j-jeune').checked,
+    sucre: document.getElementById('j-sucre').checked,
+    lent: document.getElementById('j-lent').checked,
+    actType: currentActType,
+    actChecks,
+    recettes,
+    repasNotes: document.getElementById('jour-repas-notes').value,
+    notes: document.getElementById('jour-notes').value,
+  };
+  saveEntry(date, entry);
+  toast('✅ Sauvegardé !');
+}
+
+// ===== HISTORIQUE =====
+let poidsChart = null;
+
+function updateHistorique() {
+  const data = getData();
+  const entries = Object.entries(data).filter(([,v]) => v.poids).sort((a,b) => a[0].localeCompare(b[0]));
+  const body = document.getElementById('hist-body');
+  body.innerHTML = '';
+
+  entries.slice().reverse().forEach(([date, entry], i, arr) => {
+    const prevEntry = arr[i+1];
+    const prev = prevEntry ? prevEntry[1].poids : null;
+    const delta = prev && entry.poids ? +(entry.poids - prev).toFixed(1) : null;
+    const deltaStr = delta !== null ? (delta > 0 ? '+' + delta : delta) + ' kg' : '—';
+    const deltaColor = delta < 0 ? 'var(--accent)' : delta > 0 ? 'var(--danger)' : 'var(--muted)';
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${formatDate(date)}</td>
+      <td style="font-weight:600;">${entry.poids} kg</td>
+      <td style="color:${deltaColor}; font-weight:600;">${deltaStr}</td>
+      <td>${entry.pas ? entry.pas.toLocaleString() : '—'}</td>
+      <td>${entry.jeune ? '<span class="badge badge-green">✓</span>' : '<span class="badge" style="background:var(--bg3);color:var(--muted);">—</span>'}</td>
+      <td>${entry.actType === 'gym' ? '<span class="badge badge-green">Gym</span>' : entry.actType === 'repos' ? '<span class="badge badge-warn">Repos actif</span>' : '<span class="badge" style="background:var(--bg3);color:var(--muted);">Repos</span>'}</td>
+      <td style="color:var(--muted); font-size:0.8rem; max-width:150px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${entry.notes || '—'}</td>
+      <td><button class="btn btn-danger" style="padding:.3rem .6rem; font-size:0.75rem;" onclick="deleteEntry('${date}')">✕</button></td>`;
+    body.appendChild(tr);
+  });
+
+  if (!entries.length) {
+    body.innerHTML = '<tr><td colspan="8" style="text-align:center; color:var(--muted); padding:2rem;">Aucune donnée enregistrée</td></tr>';
+  }
+
+  // Chart
+  const labels = entries.map(([d]) => formatDate(d));
+  const poids = entries.map(([,v]) => v.poids);
+
+  if (poidsChart) poidsChart.destroy();
+  const ctx = document.getElementById('chartPoids').getContext('2d');
+  poidsChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Poids (kg)',
+        data: poids,
+        borderColor: '#4ade80',
+        backgroundColor: 'rgba(74,222,128,0.08)',
+        fill: true,
+        tension: 0.3,
+        pointRadius: 4,
+        pointBackgroundColor: '#4ade80',
+      },{
+        label: 'Objectif idéal',
+        data: labels.map((_, i) => {
+          const d = entries[i][0];
+          const dDate = new Date(d + 'T12:00:00');
+          return Math.max(84, 108 - (new Date('2025-06-15T12:00:00') - dDate < 0 ?
+            (dDate - new Date('2025-06-15T12:00:00')) / (7*24*3600*1000) * 1 : 0));
+        }),
+        borderColor: '#60a5fa',
+        borderDash: [5,5],
+        pointRadius: 0,
+        fill: false,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        y: { reverse: false, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#8b90a8' } },
+        x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#8b90a8', maxRotation: 45 } }
+      },
+      plugins: { legend: { display: false } }
+    }
+  });
+}
+
+function deleteEntry(date) {
+  if (!confirm(`Supprimer l'entrée du ${formatDate(date)} ?`)) return;
+  const d = getData(); delete d[date]; saveData(d);
+  updateHistorique();
+  toast('Entrée supprimée');
+}
+
+function clearAllData() {
+  if (!confirm('Effacer TOUTES les données ? Cette action est irréversible.')) return;
+  localStorage.removeItem('tracker_data');
+  updateHistorique();
+  toast('Données effacées');
+}
+
+// ===== INIT =====
+setToday();
+updateDashboard();
+
+// Build recettes checkboxes on load
+const checkCont = document.getElementById('jour-recettes-check');
+RECETTES.forEach(r => {
+  const row = document.createElement('div');
+  row.className = 'check-row';
+  row.onclick = function() { toggleCheck(this); };
+  row.innerHTML = `<input type="checkbox"><label>${r}</label>`;
+  checkCont.appendChild(row);
+});
+</script>
+</body>
+</html>
